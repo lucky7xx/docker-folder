@@ -1,0 +1,109 @@
+
+///
+frontend and backend on same port dockerfile
+
+# Fetching the latest node image on apline linux
+FROM node:alpine AS builder
+
+# Set Git credentials as build arguments
+ARG GIT_USERNAME
+ARG GIT_PASSWORD
+
+# Install required dependencies
+RUN apk update && \
+    apk add --update git curl 
+
+# Setting up the work directory
+WORKDIR /app
+
+# Clone the Node.js Git repository , for pulling latest update from gitlab --recurse-submodules --depth=1
+RUN git clone --recurse-submodules --depth=1 https://gitlab.silvertouch.com/KaranShah/student_management.git .
+   
+# Declaring env
+ENV NODE_ENV production
+
+# To get in folder directory and install dependancies
+RUN cd /app/Client && npm install
+RUN cd /app/Client &&  npm run build
+
+# create node js image
+ FROM builder AS builder-frontend
+
+# Final stage for installing backend dependencies and copying frontend build
+FROM node:14-alpine
+
+# env file
+ENV NODE_ENV production
+
+# setting the work directory
+WORKDIR /app/Server
+
+# copying the files from the build stage image
+COPY --from=builder /app /app
+
+# copying build folder to public directory so nodengix can access it
+COPY --from=builder /app/Client/build /app/public
+
+# To get in folder directory and install dependancies
+RUN cd /app/Server && npm install
+
+# copying configuration file for running frontend and backend and frontend on same port.
+COPY NodEnginx.conf /etc/nginx/nginx.conf
+
+# update enginx
+RUN apk add --update nginx
+
+# exposing our port
+EXPOSE 80
+
+# running our image
+CMD ["sh", "-c", "nginx && DEBUG=express:* node index.js"]
+
+/// configuration file for nodenginx filename:- NodEnginx.conf
+
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log;
+pid /run/nginx/nginx.pid;
+
+events {
+  worker_connections 1024;
+}
+
+http {
+  include /etc/nginx/mime.types;
+  default_type application/octet-stream;
+
+  sendfile on;
+  tcp_nopush on;
+  tcp_nodelay on;
+
+  keepalive_timeout 65;
+
+  server {
+    listen 80;
+    server_name localhost;
+
+    root /app/public;
+
+    index index.html;
+
+    location /api {
+      proxy_pass http://localhost:8000;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location / {
+      try_files $uri /index.html;
+    }
+  }
+}
+
+
+
+///
+for running image which has frontend and backend on same port
+
+docker build --build-arg GIT_USERNAME={gitlab username} --build-arg GIT_PASSWORD={gitlab Password} -f ./{dockerfile name} -t {image-name} .

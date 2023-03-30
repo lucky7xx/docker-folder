@@ -1,0 +1,86 @@
+1. create any app e.g. react,node etc
+2. create a dockerfile for development in which we have to include                       Dockerfile.dev  <= format
+
+FROM node:19      			//node-base image
+WORKDIR /app      			//work directory
+COPY ./package*.json ./  		//copy all package.json files into work	directory
+RUN npm install				//run the installed npm scripts
+COPY . .				//copy src folders
+COPY . /app 		
+CMD ["npm","run","start"] 		//command for running app	
+
+3. create a .dockerigonre file , which includes the files we dont want to push.
+
+4. create a build version of project by typing "npm run build"
+
+5. create an image for Dockerfile.dev by typing "docker build -f Dockerfile.dev ." 
+
+---------------------NOTE: we dont need to follow steps 1 to 5 if we are doing only production build we can start from step 6 and 
+if we are starting from step 6 then dont name it Dockerfile.prod only name it Dockerfile and follow along with 
+all the naming conventions.
+
+
+6. create a dockerfile for production in which we have to include                       Dockerfile.prod<= format
+
+FROM node:19 as build
+WORKDIR /app
+COPY ./package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM nginx 
+COPY --from=build /app/build /usr/share/nginx/html 
+
+[this Dockerfile.prod only push the build version to hub it wont upload whole code]
+
+7. create an image for dockerfile.prod by typing "docker build -f Dockerfile.prod -t docker-image-prod ." 
+
+8. now run the build image by creating container with this command "docker run -e WATCHPACK_POLLING=true -d -p 8080:80 --name prod-container docker-image-prod"
+
+9. for pushing the image : create a tag with image by this command "docker tag docker-image-prod lucky7x/docker-image-prod"
+
+10. push command "docker push lucky7x/docker-image-prod" (you need to be logged in to docker hub for performing this action)
+
+11. pull command "docker pull lucky7x/docker-image-prod"
+
+
+
+-----General Commands For Docker-----
+1. build image
+
+docker build -t {image-name} . <= build image
+docker image ls <= list images
+
+2. build container
+docker run -d -p 3000:3000 --name {container-name} {image-name} <= container
+(without hot reload)
+
+docker run -d -p -e WATCHPACK_POLLING=TRUE -v C:\Users\23011801\Documents\docker-test\dockerreacttest\src:/app/src 3000:3000 --name {container-name} {image-name} 
+(with hot reload)
+
+
+3. extra commands
+
+docker rm {container-name} -f  <= removes container
+docker stop {container-name} <= stops container
+docker ps <= lists all containers
+
+
+4. bash commands
+
+docker exec -it {container-name} bash <=we can see the folders
+ls <= we can see the whole directory
+eg. cd src/ <= go to src directory
+cat app.js <= see the code of app.js in terminal
+
+
+5. push/pull dockerhub
+
+docker image ls
+docker login <= login with credentials
+docker tag {image-name} {username}/{image-name} <= tag created
+docker push {username}/{image-name} <= pushing to dockerhub
+
+
+docker pull {username}/{image-name} <= pulling from github

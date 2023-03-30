@@ -1,0 +1,26 @@
+FROM node:alpine AS builder
+ARG GIT_USERNAME
+ARG GIT_PASSWORD
+RUN apk --no-cache update && \
+    apk --no-cache add git curl
+WORKDIR /app
+RUN git clone https://gitlab.silvertouch.com/KaranShah/student_management.git .
+# RUN git clone https://github.com/Jalpa-SSTL/student_management.git .
+# RUN git checkout main
+# RUN git pull main
+
+# RUN git fetch --all
+RUN cd /app/Client && npm install --legacy-peer-deps && npm test
+RUN cd /app/Client &&  npm run build
+ FROM builder AS builder-frontend
+FROM node:14-alpine
+
+# setting the work directory
+WORKDIR /app/Server
+COPY --from=builder /app /app
+COPY --from=builder /app/Client/build /app/public
+RUN cd /app/Server && npm install && npm test
+COPY NodEnginx.conf /etc/nginx/nginx.conf
+RUN apk add --update nginx
+EXPOSE 80
+CMD ["sh", "-c", "nginx && DEBUG=express:* node index.js"]
